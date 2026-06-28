@@ -12,6 +12,8 @@ export class XmlEngine {
       parseTagValue: true,
       trimValues: true,
       textNodeName: '#text',
+      processEntities: true,
+      htmlEntities: true,
     });
 
     this.builder = new XMLBuilder({

@@ -1,5 +1,6 @@
 import type { FetchOptions, FetchResult } from './types.js';
 import type { FormatDetector } from './detector.js';
+import { RateLimiter } from './rate-limiter.js';
 
 const DEFAULT_USER_AGENT = 'nuref/1.0 (+https://github.com/nullgang/nuref)';
 const DEFAULT_TIMEOUT = 30000;
@@ -10,28 +11,52 @@ async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+export interface FetchEngineOptions {
+  userAgent?: string;
+  timeout?: number;
+  retries?: number;
+  rateLimit?: { maxTokens?: number; refillIntervalMs?: number };
+}
+
 export class FetchEngine {
   private detector: FormatDetector;
+  private rateLimiter: RateLimiter;
+  private userAgent: string;
+  private timeout: number;
+  private retries: number;
+  private requestCount = 0;
+  private errorCount = 0;
 
-  constructor(detector: FormatDetector) {
+  constructor(detector: FormatDetector, options: FetchEngineOptions = {}) {
     this.detector = detector;
+    this.userAgent = options.userAgent || DEFAULT_USER_AGENT;
+    this.timeout = options.timeout || DEFAULT_TIMEOUT;
+    this.retries = options.retries || DEFAULT_RETRIES;
+    this.rateLimiter = new RateLimiter({
+      maxTokens: options.rateLimit?.maxTokens || 5,
+      refillIntervalMs: options.rateLimit?.refillIntervalMs || 1000,
+    });
   }
 
   async fetch(options: FetchOptions): Promise<FetchResult> {
     const {
       url,
-      timeout = DEFAULT_TIMEOUT,
-      userAgent = DEFAULT_USER_AGENT,
+      timeout = this.timeout,
+      userAgent = this.userAgent,
       compress = true,
-      retries = DEFAULT_RETRIES,
+      retries = this.retries,
       etag,
       lastModified,
     } = options;
+
+    const host = new URL(url).hostname;
+    await this.rateLimiter.acquire(host);
 
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
+        this.requestCount++;
         const headers: Record<string, string> = {
           'User-Agent': userAgent,
           'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, application/json, */*',
@@ -87,6 +112,8 @@ export class FetchEngine {
           throw lastError;
         }
 
+        this.errorCount++;
+
         if (attempt < retries) {
           await sleep(RETRY_DELAY_MS * (attempt + 1));
         }
@@ -94,5 +121,18 @@ export class FetchEngine {
     }
 
     throw lastError;
+  }
+
+  getStats() {
+    return {
+      requestCount: this.requestCount,
+      errorCount: this.errorCount,
+      successRate: this.requestCount > 0 ? (this.requestCount - this.errorCount) / this.requestCount : 1,
+    };
+  }
+
+  resetStats(): void {
+    this.requestCount = 0;
+    this.errorCount = 0;
   }
 }

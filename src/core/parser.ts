@@ -1,7 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import type { FeedFormat, Feed, FeedItem, NormalizedItem } from './types.js';
 
-const xmlParserOptions = {
+const xmlParserOptions: any = {
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   allowBooleanAttributes: true,
@@ -10,6 +10,13 @@ const xmlParserOptions = {
   trimValues: true,
   isArray: () => false,
   textNodeName: '#text',
+  processEntities: {
+    enabled: true,
+    maxTotalExpansions: 100000,
+    maxExpandedLength: 1000000,
+  },
+  htmlEntities: true,
+  stopNodes: ['*.pre', '*.script'],
 };
 
 function generateId(str: string): string {
