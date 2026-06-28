@@ -23,6 +23,7 @@
     "build": "tsc",
     "dev": "bun run --watch src/index.ts",
     "start": "bun run dist/index.js",
+    "run": "bun run dist/cli/index.js",
     "cli": "bun run src/cli/index.ts",
     "test": "bun run src/tests/engine.test.ts",
     "lint": "tsc --noEmit",
