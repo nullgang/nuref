@@ -1,5 +1,8 @@
 # nuref
 
+[![npm](https://img.shields.io/npm/v/nuref)](https://www.npmjs.com/package/nuref)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Universal Feed Processing Engine — fetch, parse, normalize, search, deduplicate, and generate any feed format.
 
 ## Features
