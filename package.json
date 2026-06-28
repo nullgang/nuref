@@ -26,7 +26,10 @@
     "cli": "bun run src/cli/index.ts",
     "test": "bun run src/tests/engine.test.ts",
     "lint": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "pack:deb": "bash scripts/build-deb.sh",
+    "pack:rpm": "bash scripts/build-rpm.sh",
+    "pack:all": "bash scripts/build-packages.sh"
   },
   "keywords": [
     "rss", "atom", "rdf", "json-feed", "sitemap", "feed", "xml",
