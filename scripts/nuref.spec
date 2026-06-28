@@ -1,3 +1,5 @@
+%global debug_package %{nil}
+
 Name:           nuref
 Version:        1.0.0
 Release:        1%{?dist}
@@ -52,7 +54,7 @@ chmod +x %{buildroot}/usr/bin/nuref-api
 %doc README.md
 
 %changelog
-* $(date "+%a %b %d %Y") nullgang <noreply@github.com/nullgang> - %{version}-%{release}
+* Sat Jun 28 2025 nullgang <noreply@github.com/nullgang> - 1.0.0-1
 - Universal Feed Processing Engine
 - Fast regex parser (3-8x faster than XML parser)
 - Safety hardening and resilient fetcher

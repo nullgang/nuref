@@ -13,12 +13,13 @@ cd "$PROJECT_DIR"
 # Build project
 npm run build
 
-# Create source tarball
+# Create source tarball (must extract into nuref-VERSION/)
 TARBALL="${NAME}-${VERSION}.tar.gz"
 tar czf "/tmp/${TARBALL}" \
   --exclude='node_modules' \
   --exclude='.git' \
   --exclude='dist/packaging' \
+  --transform="s,^\.,${NAME}-${VERSION}," \
   -C . .
 
 echo "Created source tarball: /tmp/${TARBALL}"
