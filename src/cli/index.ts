@@ -169,6 +169,14 @@ program
         const feedData = parser.parse(result.raw, result.format, feed.url);
         const normalized = normalizer.normalizeItems(feedData.items);
 
+        await db.updateFeedMeta(feed.id, {
+          title: feedData.feed.title,
+          description: feedData.feed.description,
+          link: feedData.feed.link,
+          image: feedData.feed.image,
+          language: feedData.feed.language,
+        });
+
         const existingItems = await db.getItemsByFeed(feed.id, 1000);
         const dedup = new DuplicateDetector();
         dedup.loadExisting(existingItems);

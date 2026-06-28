@@ -147,6 +147,14 @@ export class ApiServer {
         const normalized = this.normalizer.normalizeItems(feedData.items);
         const validated = this.validator.validateItems(normalized);
 
+        await this.db.updateFeedMeta(id, {
+          title: feedData.feed.title,
+          description: feedData.feed.description,
+          link: feedData.feed.link,
+          image: feedData.feed.image,
+          language: feedData.feed.language,
+        });
+
         const existingItems = await this.db.getItemsByFeed(id, 1000);
         const dedup = new DuplicateDetector();
         dedup.loadExisting(existingItems);

@@ -116,6 +116,24 @@ export class SqliteDatabase extends BaseDatabase {
     this.db.prepare('UPDATE feeds SET etag = ?, last_modified = ?, updated_at = datetime(\'now\') WHERE id = ?').run(etag, lastModified, id);
   }
 
+  async updateFeedMeta(id: string, meta: { title?: string; description?: string; link?: string; image?: string; language?: string }): Promise<void> {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (meta.title !== undefined) { fields.push('title = ?'); values.push(meta.title); }
+    if (meta.description !== undefined) { fields.push('description = ?'); values.push(meta.description); }
+    if (meta.link !== undefined) { fields.push('link = ?'); values.push(meta.link); }
+    if (meta.image !== undefined) { fields.push('image = ?'); values.push(meta.image); }
+    if (meta.language !== undefined) { fields.push('language = ?'); values.push(meta.language); }
+
+    if (fields.length === 0) return;
+
+    fields.push('updated_at = datetime(\'now\')');
+    values.push(id);
+
+    this.db.prepare(`UPDATE feeds SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  }
+
   async saveItem(item: FeedItem): Promise<void> {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO items (id, title, description, content, author, published, updated, link, image, tags, guid, hash, feed_id, created_at)

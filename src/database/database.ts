@@ -10,6 +10,7 @@ export abstract class Database {
   abstract getAllFeeds(): Promise<Feed[]>;
   abstract deleteFeed(id: string): Promise<void>;
   abstract updateFeedEtag(id: string, etag: string, lastModified: string): Promise<void>;
+  abstract updateFeedMeta(id: string, meta: { title?: string; description?: string; link?: string; image?: string; language?: string }): Promise<void>;
 
   abstract saveItem(item: FeedItem): Promise<void>;
   abstract getItem(id: string): Promise<FeedItem | null>;
