@@ -1,5 +1,5 @@
 export class LRUCache<T = any> {
-  private store = new Map<string, { value: T; expiresAt: number }>();
+  private data = new Map<string, [T, number]>();
   private maxSize: number;
   private defaultTtl: number;
 
@@ -9,53 +9,50 @@ export class LRUCache<T = any> {
   }
 
   get(key: string): T | null {
-    const entry = this.store.get(key);
+    const entry = this.data.get(key);
     if (!entry) return null;
-
-    if (Date.now() > entry.expiresAt) {
-      this.store.delete(key);
+    if (Date.now() > entry[1]) {
+      this.data.delete(key);
       return null;
     }
-
-    this.store.delete(key);
-    this.store.set(key, entry);
-    return entry.value;
+    this.data.delete(key);
+    this.data.set(key, entry);
+    return entry[0];
   }
 
   set(key: string, value: T, ttlMs?: number): void {
-    if (this.store.has(key)) {
-      this.store.delete(key);
+    this.data.delete(key);
+    if (this.data.size >= this.maxSize) {
+      const first = this.data.keys().next().value;
+      if (first !== undefined) this.data.delete(first);
     }
-
-    if (this.store.size >= this.maxSize) {
-      const oldestKey = this.store.keys().next().value;
-      if (oldestKey) this.store.delete(oldestKey);
-    }
-
-    this.store.set(key, {
-      value,
-      expiresAt: Date.now() + (ttlMs || this.defaultTtl),
-    });
+    this.data.set(key, [value, Date.now() + (ttlMs || this.defaultTtl)]);
   }
 
   has(key: string): boolean {
-    return this.get(key) !== null;
+    const entry = this.data.get(key);
+    if (!entry) return false;
+    if (Date.now() > entry[1]) {
+      this.data.delete(key);
+      return false;
+    }
+    return true;
   }
 
   delete(key: string): void {
-    this.store.delete(key);
+    this.data.delete(key);
   }
 
   clear(): void {
-    this.store.clear();
+    this.data.clear();
   }
 
   cleanup(): number {
     const now = Date.now();
     let removed = 0;
-    for (const [key, entry] of this.store) {
-      if (now > entry.expiresAt) {
-        this.store.delete(key);
+    for (const [key, entry] of this.data) {
+      if (now > entry[1]) {
+        this.data.delete(key);
         removed++;
       }
     }
@@ -63,22 +60,18 @@ export class LRUCache<T = any> {
   }
 
   get size(): number {
-    return this.store.size;
+    return this.data.size;
   }
 
-  keys(): string[] {
-    return Array.from(this.store.keys());
+  getKeys(): string[] {
+    return [...this.data.keys()];
   }
 
-  values(): T[] {
-    return Array.from(this.store.values()).map(e => e.value);
+  getValues(): T[] {
+    return [...this.data.values()].map(e => e[0]);
   }
 
   get stats() {
-    return {
-      size: this.store.size,
-      maxSize: this.maxSize,
-      hitRate: 0,
-    };
+    return { size: this.data.size, maxSize: this.maxSize, hitRate: 0 };
   }
 }

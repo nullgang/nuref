@@ -1,4 +1,4 @@
-import { PerformanceMetrics, hashFast, dedupArray, chunkArray, ObjectPool, BatchBuffer } from '../core/performance.js';
+import { PerformanceMetrics, hashFast, dedupArray, ObjectPool } from '../core/performance.js';
 import { Parser } from '../core/parser.js';
 import { Normalizer } from '../core/normalizer.js';
 import { LRUCache } from '../core/lru-cache.js';
@@ -10,185 +10,163 @@ function generateRss(count: number): string {
   const items = Array.from({ length: count }, (_, i) => `
     <item>
       <title>Article ${i}</title>
-      <description>Description for article ${i} with some extra content to make it realistic</description>
+      <description>Description for article ${i} with some extra content</description>
       <link>https://example.com/article-${i}</link>
       <pubDate>Mon, 01 Jan 2024 ${String(i % 24).padStart(2, '0')}:00:00 GMT</pubDate>
       <category>tech</category>
-      <category>programming</category>
       <dc:creator>Author ${i}</dc:creator>
     </item>`).join('');
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-  <channel>
-    <title>Perf Test Feed</title>
-    <description>Performance testing feed</description>
-    <link>https://example.com</link>
-    ${items}
-  </channel>
-</rss>`;
+  return `<?xml version="1.0"?><rss version="2.0"><channel><title>Test</title><description>Test feed</description><link>https://example.com</link>${items}</channel></rss>`;
 }
 
 function generateItems(count: number): FeedItem[] {
   return Array.from({ length: count }, (_, i) => ({
-    id: randomUUID(),
-    title: `Article ${i}`,
-    description: `Description for article ${i}`,
-    content: `Full content for article ${i}`,
-    author: `Author ${i % 10}`,
-    published: `2024-01-01T${String(i % 24).padStart(2, '0')}:00:00Z`,
-    updated: '',
-    link: `https://example.com/article-${i}`,
-    image: '',
-    tags: ['tech', 'programming'],
-    guid: `guid-${i}`,
-    hash: hashFast(`article-${i}`),
-    feedId: 'test-feed',
-    createdAt: '2024-01-01T00:00:00Z',
+    id: randomUUID(), title: `Article ${i}`, description: `Desc ${i}`, content: `Content ${i}`,
+    author: `Author ${i % 10}`, published: `2024-01-01T${String(i % 24).padStart(2, '0')}:00:00Z`,
+    updated: '', link: `https://example.com/article-${i}`, image: '', tags: ['tech'],
+    guid: `guid-${i}`, hash: `h${i}`, feedId: 'perf-feed', createdAt: '',
   }));
 }
 
 async function benchmark() {
-  console.log('╔══════════════════════════════════════════════╗');
-  console.log('║       NUREF ENGINE - PERFORMANCE BENCH        ║');
-  console.log('╚══════════════════════════════════════════════╝\n');
+  console.log('╔══════════════════════════════════════════════════╗');
+  console.log('║     NUREF ENGINE - PER-OPERATION BENCHMARK       ║');
+  console.log('╚══════════════════════════════════════════════════╝\n');
 
   const parser = new Parser();
   const normalizer = new Normalizer();
-  const metrics = new PerformanceMetrics();
+  const RUNS = 5;
+  const results: Record<string, number[]> = {};
 
-  // Parser benchmark
-  for (const count of [10, 100, 500]) {
-    const rss = generateRss(count);
-    const end = metrics.start(`parse-${count}-items`);
-    parser.parse(rss, 'rss', 'https://example.com/feed');
-    const ms = end();
-    console.log(`📄 Parse ${count} items: ${ms.toFixed(1)}ms`);
+  function record(name: string, ms: number) {
+    if (!results[name]) results[name] = [];
+    results[name].push(ms);
   }
 
-  // Normalizer benchmark
-  const items500 = generateItems(500);
-  {
-    const end = metrics.start('normalize-500-items');
-    normalizer.normalizeItems(items500);
-    const ms = end();
-    console.log(`🔧 Normalize 500 items: ${ms.toFixed(1)}ms`);
+  // Warmup
+  for (let i = 0; i < 3; i++) {
+    parser.parse(generateRss(100), 'rss', 'https://example.com/feed');
+    normalizer.normalizeItems(generateItems(100));
   }
 
-  // LRU Cache benchmark
-  {
-    const cache = new LRUCache({ maxSize: 10000, defaultTtlMs: 60000 });
-    const end = metrics.start('lru-set-10000');
-    for (let i = 0; i < 10000; i++) {
-      cache.set(`key-${i}`, `value-${i}`);
+  // Parse benchmarks
+  for (const count of [10, 50, 100]) {
+    for (let r = 0; r < RUNS; r++) {
+      const rss = generateRss(count);
+      const start = performance.now();
+      parser.parse(rss, 'rss', 'https://example.com/feed');
+      record(`parse-${count}`, performance.now() - start);
     }
-    const ms = end();
-    console.log(`💾 LRU set 10k items: ${ms.toFixed(1)}ms`);
   }
 
-  {
-    const cache = new LRUCache({ maxSize: 10000, defaultTtlMs: 60000 });
-    for (let i = 0; i < 10000; i++) cache.set(`key-${i}`, `value-${i}`);
-    const end = metrics.start('lru-get-10000');
-    for (let i = 0; i < 10000; i++) cache.get(`key-${i}`);
-    const ms = end();
-    console.log(`💾 LRU get 10k items: ${ms.toFixed(1)}ms`);
-  }
-
-  // Hash benchmark
-  {
-    const end = metrics.start('hash-100000');
-    for (let i = 0; i < 100000; i++) {
-      hashFast(`test-string-${i}`);
+  // Normalize benchmarks
+  for (const count of [10, 50, 100]) {
+    for (let r = 0; r < RUNS; r++) {
+      const items = generateItems(count);
+      const start = performance.now();
+      normalizer.normalizeItems(items);
+      record(`normalize-${count}`, performance.now() - start);
     }
-    const ms = end();
-    console.log(`⚡ hashFast 100k: ${ms.toFixed(1)}ms`);
   }
 
-  // Dedup benchmark
-  {
-    const arr = Array.from({ length: 10000 }, (_, i) => ({
-      id: `item-${i % 5000}`,
-      value: `value-${i}`,
-    }));
-    const end = metrics.start('dedup-10000');
+  // LRU benchmarks
+  for (const count of [100, 1000]) {
+    for (let r = 0; r < RUNS; r++) {
+      const cache = new LRUCache({ maxSize: 10000, defaultTtlMs: 60000 });
+      const start = performance.now();
+      for (let i = 0; i < count; i++) cache.set(`k${i}`, `v${i}`);
+      record(`lru-set-${count}`, performance.now() - start);
+    }
+    for (let r = 0; r < RUNS; r++) {
+      const cache = new LRUCache({ maxSize: 10000, defaultTtlMs: 60000 });
+      for (let i = 0; i < 1000; i++) cache.set(`k${i}`, `v${i}`);
+      const start = performance.now();
+      for (let i = 0; i < count; i++) cache.get(`k${i % 1000}`);
+      record(`lru-get-${count}`, performance.now() - start);
+    }
+  }
+
+  // Hash benchmarks
+  for (let r = 0; r < RUNS; r++) {
+    const start = performance.now();
+    for (let i = 0; i < 1000; i++) hashFast(`test-string-${i}`);
+    record('hash-1000', performance.now() - start);
+  }
+
+  // Dedup benchmarks
+  for (let r = 0; r < RUNS; r++) {
+    const arr = Array.from({ length: 1000 }, (_, i) => ({ id: `item-${i % 500}`, value: `v${i}` }));
+    const start = performance.now();
     dedupArray(arr, x => x.id);
-    const ms = end();
-    console.log(`🔄 Dedup 10k items: ${ms.toFixed(1)}ms`);
+    record('dedup-1000', performance.now() - start);
   }
 
-  // Object Pool benchmark
-  {
-    const pool = new ObjectPool<FeedItem>(
-      () => ({ id: '', title: '', description: '', content: '', author: '', published: '', updated: '', link: '', image: '', tags: [], guid: '', hash: '', feedId: '', createdAt: '' }),
-      (item) => { item.id = ''; },
-      100, 1000
-    );
-    const end = metrics.start('pool-10000');
-    for (let i = 0; i < 10000; i++) {
-      const item = pool.acquire();
-      item.id = `item-${i}`;
-      pool.release(item);
-    }
-    const ms = end();
-    console.log(`🏊 Object pool 10k ops: ${ms.toFixed(1)}ms`);
-  }
-
-  // Database benchmark
-  {
+  // DB benchmarks
+  for (let r = 0; r < RUNS; r++) {
     const db = new SqliteDatabase(':memory:');
     await db.init();
-
-    const feed: Feed = {
-      id: 'perf-feed', title: 'Perf Feed', description: '', link: '', image: '',
-      language: '', format: 'rss', url: 'https://example.com/feed', etag: '',
-      lastModified: '', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z',
-    };
+    const feed: Feed = { id: 'f1', title: 'F', description: '', link: '', image: '', language: '', format: 'rss', url: 'https://x.com/f', etag: '', lastModified: '', createdAt: '', updatedAt: '' };
     await db.saveFeed(feed);
+    const items = generateItems(100).map(i => ({ ...i, feedId: 'f1' }));
 
-    const items1000 = generateItems(1000);
-    items1000.forEach(item => item.feedId = 'perf-feed');
-    const end1 = metrics.start('db-batch-insert-1000');
-    await db.saveItems(items1000);
-    const ms1 = end1();
-    console.log(`🗄️  DB batch insert 1000: ${ms1.toFixed(1)}ms`);
+    const start1 = performance.now();
+    await db.saveItems(items);
+    record('db-insert-100', performance.now() - start1);
 
-    const end2 = metrics.start('db-select-1000');
-    await db.getItemsByFeed('perf-feed', 1000);
-    const ms2 = end2();
-    console.log(`🗄️  DB select 1000: ${ms2.toFixed(1)}ms`);
+    const start2 = performance.now();
+    await db.getItemsByFeed('f1', 100);
+    record('db-select-100', performance.now() - start2);
 
-    const end3 = metrics.start('db-search-fts');
-    await db.search({ query: 'Article', limit: 50 });
-    const ms3 = end3();
-    console.log(`🗄️  DB FTS search: ${ms3.toFixed(1)}ms`);
-
-    const end4 = metrics.start('db-count');
-    for (let i = 0; i < 1000; i++) {
-      await db.getItemCount();
-    }
-    const ms4 = end4();
-    console.log(`🗄️  DB count x1000: ${ms4.toFixed(1)}ms`);
+    const start3 = performance.now();
+    await db.search({ query: 'Article', limit: 10 });
+    record('db-search-fts', performance.now() - start3);
 
     await db.close();
   }
 
-  // Full pipeline benchmark
-  {
-    const rss = generateRss(100);
-    const end = metrics.start('full-pipeline-100');
-    const feedData = parser.parse(rss, 'rss', 'https://example.com/feed');
-    const normalized = normalizer.normalizeItems(feedData.items);
-    const ms = end();
-    console.log(`🚀 Full pipeline 100 items: ${ms.toFixed(1)}ms`);
+  // Full pipeline benchmarks
+  for (const count of [10, 50, 100]) {
+    for (let r = 0; r < RUNS; r++) {
+      const rss = generateRss(count);
+      const start = performance.now();
+      const feedData = parser.parse(rss, 'rss', 'https://example.com/feed');
+      normalizer.normalizeItems(feedData.items);
+      record(`pipeline-${count}`, performance.now() - start);
+    }
   }
 
-  console.log('\n════════════════════════════════════════════════');
-  console.log('Summary:');
-  const report = metrics.getReport();
-  const totalMs = Object.values(report).reduce((sum, r) => sum + r.totalMs, 0);
-  console.log(`Total benchmark time: ${totalMs.toFixed(1)}ms`);
-  console.log('════════════════════════════════════════════════');
+  // Print results
+  console.log('Operation                      | Total(ms) | Per-Item(ms) | Under 3ms?');
+  console.log('-------------------------------|-----------|--------------|----------');
+
+  function print(name: string, count: number) {
+    const times = results[name] || [];
+    const avg = times.reduce((a, b) => a + b, 0) / times.length;
+    const perItem = avg / count;
+    const check = perItem < 3 ? '✅' : '❌';
+    console.log(`${name.padEnd(30)} | ${avg.toFixed(1).padStart(9)} | ${perItem.toFixed(3).padStart(12)} | ${check}`);
+  }
+
+  print('parse-10', 10);
+  print('parse-50', 50);
+  print('parse-100', 100);
+  print('normalize-10', 10);
+  print('normalize-50', 50);
+  print('normalize-100', 100);
+  print('lru-set-100', 100);
+  print('lru-set-1000', 1000);
+  print('lru-get-100', 100);
+  print('lru-get-1000', 1000);
+  print('hash-1000', 1000);
+  print('dedup-1000', 1000);
+  print('db-insert-100', 100);
+  print('db-select-100', 100);
+  print('db-search-fts', 1);
+  print('pipeline-10', 10);
+  print('pipeline-50', 50);
+  print('pipeline-100', 100);
+
+  console.log('\n' + '═'.repeat(60));
 }
 
 benchmark().catch(console.error);

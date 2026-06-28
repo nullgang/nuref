@@ -17,8 +17,8 @@ export class SqliteDatabase extends BaseDatabase {
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
     this.db.pragma('synchronous = NORMAL');
-    this.db.pragma('cache_size = -64000');
-    this.db.pragma('mmap_size = 268435456');
+    this.db.pragma('cache_size = -256000');
+    this.db.pragma('mmap_size = 536870912');
     this.db.pragma('temp_store = MEMORY');
 
     this.db.exec(`

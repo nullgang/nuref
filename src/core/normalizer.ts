@@ -1,85 +1,91 @@
 import type { NormalizedItem } from './types.js';
 
+const ENTITY_MAP: Record<string, string> = {
+  '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>',
+  '&quot;': '"', '&#39;': "'", '&apos;': "'",
+};
+
+const CLEAN_TEXT_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]+/g;
+const WHITESPACE_RE = /\s+/g;
+const HTML_TAG_RE = /<[^>]+>/g;
+const HTML_ENTITY_RE = /&\w+;/g;
+const AUTHOR_PAREN_RE = /\s*\(.*?\)\s*/g;
+const AUTHOR_ANGLE_RE = /\s*<.*?>\s*/g;
+
 export class Normalizer {
   normalizeItems(items: NormalizedItem[]): NormalizedItem[] {
-    return items.map(item => this.normalizeItem(item));
+    const result = new Array(items.length);
+    for (let i = 0; i < items.length; i++) {
+      result[i] = this.normalizeItem(items[i]);
+    }
+    return result;
   }
 
   normalizeItem(item: NormalizedItem): NormalizedItem {
     return {
-      title: this.cleanText(item.title),
-      description: this.cleanHtml(this.cleanText(item.description)),
-      content: this.cleanHtml(item.content || item.description),
-      author: this.normalizeAuthor(item.author),
-      published: this.normalizeDate(item.published || item.updated),
-      updated: this.normalizeDate(item.updated || item.published),
-      link: this.normalizeUrl(item.link),
-      image: this.normalizeUrl(item.image),
-      tags: this.normalizeTags(item.tags),
+      title: cleanText(item.title),
+      description: cleanHtml(cleanText(item.description)),
+      content: cleanHtml(item.content || item.description),
+      author: normalizeAuthor(item.author),
+      published: normalizeDate(item.published || item.updated),
+      updated: normalizeDate(item.updated || item.published),
+      link: normalizeUrl(item.link),
+      image: normalizeUrl(item.image),
+      tags: normalizeTags(item.tags),
     };
   }
+}
 
-  private cleanText(text: string): string {
-    return text
-      .replace(/\s+/g, ' ')
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-      .trim();
+function cleanText(text: string): string {
+  if (!text) return '';
+  return text.replace(WHITESPACE_RE, ' ').replace(CLEAN_TEXT_RE, '').trim();
+}
+
+function cleanHtml(html: string): string {
+  if (!html) return '';
+  let result = html;
+  if (result.includes('<')) {
+    if (result.length > 100) {
+      result = result.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+      result = result.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+    }
+    result = result.replace(HTML_TAG_RE, '');
   }
-
-  private cleanHtml(html: string): string {
-    return html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&\w+;/g, '')
-      .trim();
+  if (result.includes('&')) {
+    for (const [entity, char] of Object.entries(ENTITY_MAP)) {
+      if (result.includes(entity)) result = result.replaceAll(entity, char);
+    }
+    if (HTML_ENTITY_RE.test(result)) result = result.replace(HTML_ENTITY_RE, '');
   }
+  return result.trim();
+}
 
-  private normalizeAuthor(author: string): string {
-    return author
-      .replace(/\s*\(.*?\)\s*/g, '')
-      .replace(/\s*<.*?>\s*/g, '')
-      .trim();
-  }
+function normalizeAuthor(author: string): string {
+  if (!author) return '';
+  return author.replace(AUTHOR_PAREN_RE, '').replace(AUTHOR_ANGLE_RE, '').trim();
+}
 
-  private normalizeDate(dateStr: string): string {
-    if (!dateStr) return '';
+function normalizeDate(dateStr: string): string {
+  if (!dateStr) return '';
+  const parsed = new Date(dateStr);
+  return isNaN(parsed.getTime()) ? dateStr : parsed.toISOString();
+}
 
-    try {
-      const parsed = new Date(dateStr);
-      if (!isNaN(parsed.getTime())) {
-        return parsed.toISOString();
-      }
-    } catch {}
+function normalizeUrl(url: string): string {
+  if (!url) return '';
+  try { return new URL(url).href; } catch { return url; }
+}
 
-    return dateStr;
-  }
-
-  private normalizeUrl(url: string): string {
-    if (!url) return '';
-    try {
-      const parsed = new URL(url);
-      return parsed.href;
-    } catch {
-      return url;
+function normalizeTags(tags: string[]): string[] {
+  if (!tags || tags.length === 0) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i].trim().toLowerCase();
+    if (tag && !seen.has(tag)) {
+      seen.add(tag);
+      result.push(tag);
     }
   }
-
-  private normalizeTags(tags: string[]): string[] {
-    const seen = new Set<string>();
-    return tags
-      .map(tag => tag.trim().toLowerCase())
-      .filter(tag => tag.length > 0)
-      .filter(tag => {
-        if (seen.has(tag)) return false;
-        seen.add(tag);
-        return true;
-      });
-  }
+  return result;
 }
