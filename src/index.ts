@@ -22,6 +22,21 @@ export { FeedAggregator } from './core/aggregator.js';
 export { FeedComparator } from './core/diff.js';
 export { StreamManager, formatSSE, createSSEStream } from './core/stream.js';
 export { getProxyUrl, getProxyEnv } from './core/proxy.js';
+export { extractFromNamespaces, getRegisteredNamespaces } from './core/namespace.js';
+export { resolveRelativeUrl, resolveUrls, extractBaseUrl, isAbsoluteUrl, normalizeUrl } from './core/url-resolver.js';
+export { parseDate, normalizeDate, formatDate, isRecent, sortByDate } from './core/date-parser.js';
+export { LRUCache } from './core/lru-cache.js';
+export { StreamingParser, parseFileStream, parseCompressedFileStream } from './core/streaming-parser.js';
+export { CircuitBreaker } from './core/circuit-breaker.js';
+export { FeedIntegrity } from './core/integrity.js';
+export { categorizeItem, categorizeItems, getAvailableCategories, getCategoryKeywords } from './core/auto-categorize.js';
+export { detectLanguage, detectLanguageFromMeta } from './core/language-detect.js';
+export { estimateReadTime, estimateItemReadTime, estimateItemsReadTime, formatReadTime } from './core/read-time.js';
+export { CrossFeedDedup } from './core/cross-feed-dedup.js';
+export { exportOpml, parseOpml } from './core/opml.js';
+export { renderMarkdown, renderItemMarkdown } from './core/markdown.js';
+export { renderHtml, renderItemHtml } from './core/html-generator.js';
+export { getAdapter } from './core/webhook-formats.js';
 export type {
   Feed,
   FeedItem,
@@ -41,3 +56,9 @@ export type { AggregatedFeed, AggregatorOptions } from './core/aggregator.js';
 export type { FeedDiff, FeedDiffModified } from './core/diff.js';
 export type { StreamEvent, StreamCallback } from './core/stream.js';
 export type { ProxyConfig } from './core/proxy.js';
+export type { FeedFingerprint, TamperResult } from './core/integrity.js';
+export type { StreamParseOptions } from './core/streaming-parser.js';
+export type { CircuitBreakerOptions, CircuitState } from './core/circuit-breaker.js';
+export type { CrossFeedDuplicate } from './core/cross-feed-dedup.js';
+export type { ReadTimeResult } from './core/read-time.js';
+export type { WebhookAdapter } from './core/webhook-formats.js';

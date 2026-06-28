@@ -16,6 +16,21 @@ export { FeedAggregator } from './aggregator.js';
 export { FeedComparator } from './diff.js';
 export { StreamManager, formatSSE, createSSEStream } from './stream.js';
 export { getProxyUrl, getProxyEnv } from './proxy.js';
+export { extractFromNamespaces, getRegisteredNamespaces } from './namespace.js';
+export { resolveRelativeUrl, resolveUrls, extractBaseUrl, isAbsoluteUrl, normalizeUrl } from './url-resolver.js';
+export { parseDate, normalizeDate, formatDate, isRecent, sortByDate } from './date-parser.js';
+export { LRUCache } from './lru-cache.js';
+export { StreamingParser, parseFileStream, parseCompressedFileStream } from './streaming-parser.js';
+export { CircuitBreaker } from './circuit-breaker.js';
+export { FeedIntegrity } from './integrity.js';
+export { categorizeItem, categorizeItems, getAvailableCategories, getCategoryKeywords } from './auto-categorize.js';
+export { detectLanguage, detectLanguageFromMeta } from './language-detect.js';
+export { estimateReadTime, estimateItemReadTime, estimateItemsReadTime, formatReadTime } from './read-time.js';
+export { CrossFeedDedup } from './cross-feed-dedup.js';
+export { exportOpml, parseOpml } from './opml.js';
+export { renderMarkdown, renderItemMarkdown } from './markdown.js';
+export { renderHtml, renderItemHtml } from './html-generator.js';
+export { getAdapter } from './webhook-formats.js';
 export type {
   Feed,
   FeedItem,
@@ -39,3 +54,9 @@ export type { AggregatedFeed, AggregatorOptions } from './aggregator.js';
 export type { FeedDiff, FeedDiffModified } from './diff.js';
 export type { StreamEvent, StreamCallback } from './stream.js';
 export type { ProxyConfig } from './proxy.js';
+export type { FeedFingerprint, TamperResult } from './integrity.js';
+export type { StreamParseOptions } from './streaming-parser.js';
+export type { CircuitBreakerOptions, CircuitState } from './circuit-breaker.js';
+export type { CrossFeedDuplicate } from './cross-feed-dedup.js';
+export type { ReadTimeResult } from './read-time.js';
+export type { WebhookAdapter } from './webhook-formats.js';
