@@ -29,7 +29,8 @@
     "prepublishOnly": "npm run build",
     "pack:deb": "bash scripts/build-deb.sh",
     "pack:rpm": "bash scripts/build-rpm.sh",
-    "pack:all": "bash scripts/build-packages.sh"
+    "pack:all": "bash scripts/build-packages.sh",
+    "setup-repo": "bash scripts/setup-repo.sh"
   },
   "keywords": [
     "rss", "atom", "rdf", "json-feed", "sitemap", "feed", "xml",
