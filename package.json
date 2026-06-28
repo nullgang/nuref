@@ -1,6 +1,6 @@
 {
   "name": "nuref",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Universal Feed Processing Engine - Fetch, parse, normalize, search, deduplicate, aggregate, compare, stream, and generate any feed format",
   "type": "module",
   "main": "dist/index.js",
@@ -35,9 +35,24 @@
     "setup-repo": "bash scripts/setup-repo.sh"
   },
   "keywords": [
-    "rss", "atom", "rdf", "json-feed", "sitemap", "feed", "xml",
-    "parser", "aggregator", "aggregator", "fetch", "normalize",
-    "search", "deduplicate", "webhook", "scheduler", "cli", "api"
+    "rss",
+    "atom",
+    "rdf",
+    "json-feed",
+    "sitemap",
+    "feed",
+    "xml",
+    "parser",
+    "aggregator",
+    "aggregator",
+    "fetch",
+    "normalize",
+    "search",
+    "deduplicate",
+    "webhook",
+    "scheduler",
+    "cli",
+    "api"
   ],
   "repository": {
     "type": "git",
