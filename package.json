@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "nuref": "dist/cli/index.js"
+    "nuref": "dist/cli/index.js",
+    "nuref-api": "dist/api/server.js"
   },
   "exports": {
     ".": {
