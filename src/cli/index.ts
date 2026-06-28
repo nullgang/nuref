@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { Command } from 'commander';
 import { SqliteDatabase } from '../database/sqlite.js';
 import { FeedGenerator } from '../generator/generator.js';
@@ -280,6 +281,83 @@ program
     console.log('Nuref Statistics');
     console.log(`  Feeds: ${feedCount}`);
     console.log(`  Items: ${itemCount}`);
+
+    await db.close();
+  });
+
+program
+  .command('aggregate <urls...>')
+  .description('Aggregate multiple feeds into one')
+  .option('-l, --limit <number>', 'Max items', '50')
+  .action(async (urls, options) => {
+    const { FeedAggregator } = await import('../core/aggregator.js');
+    const { FeedGenerator } = await import('../generator/generator.js');
+
+    const aggregator = new FeedAggregator();
+    console.log(`Aggregating ${urls.length} feeds...`);
+
+    const result = await aggregator.fetchAndAggregate(urls, {
+      sort: 'date',
+      limit: parseInt(options.limit),
+    });
+
+    console.log(`\n${result.title}`);
+    console.log(`Sources: ${result.sources.map(s => `${s.title} (${s.count})`).join(', ')}`);
+    console.log(`Total items: ${result.items.length}\n`);
+
+    for (const item of result.items.slice(0, 20)) {
+      console.log(`  ${item.title}`);
+      console.log(`    ${item.link}`);
+      console.log(`    ${item.published} | ${item.author}`);
+      console.log();
+    }
+  });
+
+program
+  .command('diff <id1> <id2>')
+  .description('Compare two feeds')
+  .action(async (id1, id2) => {
+    const { FeedComparator } = await import('../core/diff.js');
+    const db = await getDb();
+
+    const feed1 = await db.getFeed(id1);
+    const feed2 = await db.getFeed(id2);
+
+    if (!feed1) { console.error(`Feed not found: ${id1}`); await db.close(); return; }
+    if (!feed2) { console.error(`Feed not found: ${id2}`); await db.close(); return; }
+
+    const items1 = await db.getItemsByFeed(id1, 1000);
+    const items2 = await db.getItemsByFeed(id2, 1000);
+
+    const comparator = new FeedComparator();
+    const diff = comparator.compare(items1, items2);
+
+    console.log(`\nDiff: ${feed1.title} vs ${feed2.title}`);
+    console.log(`  Added: ${diff.summary.addedCount}`);
+    console.log(`  Removed: ${diff.summary.removedCount}`);
+    console.log(`  Modified: ${diff.summary.modifiedCount}`);
+    console.log(`  Unchanged: ${diff.summary.unchangedCount}`);
+
+    if (diff.added.length > 0) {
+      console.log('\nAdded:');
+      for (const item of diff.added) {
+        console.log(`  + ${item.title}`);
+      }
+    }
+
+    if (diff.removed.length > 0) {
+      console.log('\nRemoved:');
+      for (const item of diff.removed) {
+        console.log(`  - ${item.title}`);
+      }
+    }
+
+    if (diff.modified.length > 0) {
+      console.log('\nModified:');
+      for (const mod of diff.modified) {
+        console.log(`  ~ ${mod.after.title} [${mod.changes.join(', ')}]`);
+      }
+    }
 
     await db.close();
   });

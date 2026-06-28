@@ -551,7 +551,7 @@ async function testDatabase() {
   await db.saveItem(item);
   const retrievedItem = await db.getItem('item-test');
   assert(retrievedItem?.title === 'Test Item', 'db: save and get item');
-  assert(retrievedItem?.tags.includes('test'), 'db: preserves tags');
+  assert(retrievedItem?.tags?.includes('test') === true, 'db: preserves tags');
 
   const feedItems = await db.getItemsByFeed('feed-test');
   assert(feedItems.length === 1, 'db: get items by feed');

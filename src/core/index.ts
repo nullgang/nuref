@@ -12,6 +12,10 @@ export { TransformPipeline, truncateText, prefixTitle, filterByKeyword, addTag, 
 export { BulkOperations } from './bulk.js';
 export { EnclosureHandler } from './enclosure.js';
 export { CategoryManager } from './category.js';
+export { FeedAggregator } from './aggregator.js';
+export { FeedComparator } from './diff.js';
+export { StreamManager, formatSSE, createSSEStream } from './stream.js';
+export { getProxyUrl, getProxyEnv } from './proxy.js';
 export type {
   Feed,
   FeedItem,
@@ -31,3 +35,7 @@ export type { TransformStep, TransformFunction } from './transforms.js';
 export type { BulkAddResult, BulkSyncResult } from './bulk.js';
 export type { Enclosure } from './enclosure.js';
 export type { FeedCategory, FeedTag } from './category.js';
+export type { AggregatedFeed, AggregatorOptions } from './aggregator.js';
+export type { FeedDiff, FeedDiffModified } from './diff.js';
+export type { StreamEvent, StreamCallback } from './stream.js';
+export type { ProxyConfig } from './proxy.js';

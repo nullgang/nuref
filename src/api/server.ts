@@ -289,6 +289,69 @@ export class ApiServer {
     this.app.get('/health', (c) => {
       return c.json({ status: 'ok', version: '1.0.0' });
     });
+
+    this.app.get('/streams/:feedId', async (c) => {
+      const feedId = c.req.param('feedId');
+      const feed = await this.db.getFeed(feedId);
+      if (!feed) return c.json({ error: 'Feed not found' }, 404);
+
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            const send = (event: string, data: any) => {
+              controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+            };
+
+            send('connected', { feedId, message: 'Stream connected' });
+
+            const heartbeat = setInterval(() => {
+              send('heartbeat', { alive: true, timestamp: new Date().toISOString() });
+            }, 30000);
+
+            c.req.raw.signal?.addEventListener('abort', () => {
+              clearInterval(heartbeat);
+              controller.close();
+            });
+          },
+        }),
+        {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+        }
+      );
+    });
+
+    this.app.get('/aggregated', async (c) => {
+      const { FeedAggregator } = await import('../core/aggregator.js');
+      const urls = c.req.query('urls')?.split(',') || [];
+      if (urls.length === 0) return c.json({ error: 'urls query param required' }, 400);
+
+      const aggregator = new FeedAggregator();
+      const result = await aggregator.fetchAndAggregate(urls, {
+        sort: 'date',
+        limit: parseInt(c.req.query('limit') || '100'),
+      });
+
+      return c.json(result);
+    });
+
+    this.app.get('/diff/:id1/:id2', async (c) => {
+      const { FeedComparator } = await import('../core/diff.js');
+      const id1 = c.req.param('id1');
+      const id2 = c.req.param('id2');
+
+      const items1 = await this.db.getItemsByFeed(id1, 1000);
+      const items2 = await this.db.getItemsByFeed(id2, 1000);
+
+      const comparator = new FeedComparator();
+      const diff = comparator.compare(items1, items2);
+
+      return c.json(diff);
+    });
   }
 
   start(): void {

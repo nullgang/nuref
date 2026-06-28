@@ -1,6 +1,8 @@
 import type { FetchOptions, FetchResult } from './types.js';
 import type { FormatDetector } from './detector.js';
 import { RateLimiter } from './rate-limiter.js';
+import type { ProxyConfig } from './proxy.js';
+import { getProxyEnv } from './proxy.js';
 
 const DEFAULT_USER_AGENT = 'nuref/1.0 (+https://github.com/nullgang/nuref)';
 const DEFAULT_TIMEOUT = 30000;
@@ -16,6 +18,7 @@ export interface FetchEngineOptions {
   timeout?: number;
   retries?: number;
   rateLimit?: { maxTokens?: number; refillIntervalMs?: number };
+  proxy?: ProxyConfig;
 }
 
 export class FetchEngine {
@@ -26,12 +29,14 @@ export class FetchEngine {
   private retries: number;
   private requestCount = 0;
   private errorCount = 0;
+  private proxy?: ProxyConfig;
 
   constructor(detector: FormatDetector, options: FetchEngineOptions = {}) {
     this.detector = detector;
     this.userAgent = options.userAgent || DEFAULT_USER_AGENT;
     this.timeout = options.timeout || DEFAULT_TIMEOUT;
     this.retries = options.retries || DEFAULT_RETRIES;
+    this.proxy = options.proxy;
     this.rateLimiter = new RateLimiter({
       maxTokens: options.rateLimit?.maxTokens || 5,
       refillIntervalMs: options.rateLimit?.refillIntervalMs || 1000,
@@ -53,7 +58,17 @@ export class FetchEngine {
     await this.rateLimiter.acquire(host);
 
     let lastError: Error | null = null;
+    const savedEnv: Record<string, string | undefined> = {};
 
+    if (this.proxy) {
+      const proxyEnv = getProxyEnv(this.proxy);
+      for (const [key, value] of Object.entries(proxyEnv)) {
+        savedEnv[key] = process.env[key];
+        process.env[key] = value;
+      }
+    }
+
+    try {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         this.requestCount++;
@@ -121,6 +136,17 @@ export class FetchEngine {
     }
 
     throw lastError;
+    } finally {
+      if (this.proxy) {
+        for (const [key, value] of Object.entries(savedEnv)) {
+          if (value === undefined) {
+            delete process.env[key];
+          } else {
+            process.env[key] = value;
+          }
+        }
+      }
+    }
   }
 
   getStats() {

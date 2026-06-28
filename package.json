@@ -1,38 +1,66 @@
 {
   "name": "nuref",
   "version": "1.0.0",
-  "description": "Universal Feed Processing Engine - Fetch, parse, normalize, search, and generate any feed format",
+  "description": "Universal Feed Processing Engine - Fetch, parse, normalize, search, deduplicate, aggregate, compare, stream, and generate any feed format",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
     "nuref": "dist/cli/index.js"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
-    "cli": "tsx src/cli/index.ts",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "tsc --noEmit"
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run dist/index.js",
+    "cli": "bun run src/cli/index.ts",
+    "test": "bun run src/tests/engine.test.ts",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": ["rss", "atom", "feed", "xml", "parser", "aggregator"],
+  "keywords": [
+    "rss", "atom", "rdf", "json-feed", "sitemap", "feed", "xml",
+    "parser", "aggregator", "aggregator", "fetch", "normalize",
+    "search", "deduplicate", "webhook", "scheduler", "cli", "api"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nullgang/nuref.git"
+  },
+  "homepage": "https://github.com/nullgang/nuref",
+  "bugs": {
+    "url": "https://github.com/nullgang/nuref/issues"
+  },
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@hono/node-server": "^1.12.0",
     "better-sqlite3": "^11.3.0",
     "commander": "^12.1.0",
     "fast-xml-parser": "^4.5.0",
     "hono": "^4.6.0",
-    "node-cron": "^3.0.3",
-    "undici": "^6.19.0"
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
     "@types/node": "^22.0.0",
     "@types/node-cron": "^3.0.11",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "typescript": "^5.6.0"
+  },
+  "optionalDependencies": {
+    "undici": "^6.19.0"
   }
 }

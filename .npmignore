@@ -1,0 +1,10 @@
+src/
+node_modules/
+*.db
+*.db-*
+.env
+.env.*
+.git/
+.github/
+tests/
+dist/tests/
