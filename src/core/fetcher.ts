@@ -161,4 +161,26 @@ export class FetchEngine {
     this.requestCount = 0;
     this.errorCount = 0;
   }
+
+  async fetchConcurrent(urls: string[], concurrency = 5): Promise<(FetchResult | null)[]> {
+    const results: (FetchResult | null)[] = new Array(urls.length).fill(null);
+    const executing = new Set<Promise<void>>();
+
+    for (let i = 0; i < urls.length; i++) {
+      const idx = i;
+      const task = this.fetch({ url: urls[idx] })
+        .then(result => { results[idx] = result; })
+        .catch(() => { results[idx] = null; });
+      
+      executing.add(task);
+      task.finally(() => executing.delete(task));
+
+      if (executing.size >= concurrency) {
+        await Promise.race(executing);
+      }
+    }
+
+    await Promise.all(executing);
+    return results;
+  }
 }

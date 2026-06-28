@@ -98,17 +98,21 @@ export class ApiServer {
         const normalized = this.normalizer.normalizeItems(feedData.items);
         const validated = this.validator.validateItems(normalized);
 
-        for (const item of validated.validItems) {
+        const itemsToSave = validated.validItems.map(item => {
           const hash = this.computeHash(item);
           const guid = item.link || item.title;
-          await this.db.saveItem({
+          return {
             id: randomUUID(),
             ...item,
             guid,
             hash,
             feedId,
             createdAt: now,
-          });
+          };
+        });
+
+        if (itemsToSave.length > 0) {
+          await this.db.saveItems(itemsToSave);
         }
 
         if (cron) {
@@ -162,19 +166,23 @@ export class ApiServer {
         const newItems = dedup.filterNew(validated.validItems, id);
         let added = 0;
 
-        for (const item of newItems) {
+        const itemsToSave = newItems.map(item => {
           const hash = dedup.computeHash(item);
           const guid = item.link || item.title;
-          await this.db.saveItem({
+          dedup.markAsSeen(item);
+          added++;
+          return {
             id: randomUUID(),
             ...item,
             guid,
             hash,
             feedId: id,
             createdAt: new Date().toISOString(),
-          });
-          dedup.markAsSeen(item);
-          added++;
+          };
+        });
+
+        if (itemsToSave.length > 0) {
+          await this.db.saveItems(itemsToSave);
         }
 
         await this.db.updateFeedEtag(id, result.etag, result.lastModified);

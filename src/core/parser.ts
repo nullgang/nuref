@@ -6,7 +6,7 @@ const xmlParserOptions: any = {
   attributeNamePrefix: '@_',
   allowBooleanAttributes: true,
   parseTagValue: true,
-  parseAttributeValue: true,
+  parseAttributeValue: false,
   trimValues: true,
   isArray: () => false,
   textNodeName: '#text',
@@ -17,6 +17,11 @@ const xmlParserOptions: any = {
   },
   htmlEntities: true,
   stopNodes: ['*.pre', '*.script'],
+  preserveOrder: false,
+  alwaysCreateTextNode: false,
+  commentPropName: false,
+  ignoreDeclaration: true,
+  ignorePiTags: true,
 };
 
 function generateId(str: string): string {

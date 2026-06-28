@@ -13,6 +13,7 @@ export abstract class Database {
   abstract updateFeedMeta(id: string, meta: { title?: string; description?: string; link?: string; image?: string; language?: string }): Promise<void>;
 
   abstract saveItem(item: FeedItem): Promise<void>;
+  abstract saveItems(items: FeedItem[]): Promise<void>;
   abstract getItem(id: string): Promise<FeedItem | null>;
   abstract getItemByGuid(feedId: string, guid: string): Promise<FeedItem | null>;
   abstract getItemsByFeed(feedId: string, limit?: number, offset?: number): Promise<FeedItem[]>;

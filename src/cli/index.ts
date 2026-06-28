@@ -69,26 +69,28 @@ program
       await db.saveFeed(feed);
 
       const normalized = normalizer.normalizeItems(feedData.items);
-      let added = 0;
 
-      for (const item of normalized) {
+      const itemsToSave = normalized.map(item => {
         const hash = computeHash(item);
         const guid = item.link || item.title;
-        await db.saveItem({
+        return {
           id: randomUUID(),
           ...item,
           guid,
           hash,
           feedId,
           createdAt: now,
-        });
-        added++;
+        };
+      });
+
+      if (itemsToSave.length > 0) {
+        await db.saveItems(itemsToSave);
       }
 
       console.log(`Added: ${feed.title}`);
       console.log(`  ID: ${feedId}`);
       console.log(`  Format: ${result.format}`);
-      console.log(`  Items: ${added}`);
+      console.log(`  Items: ${itemsToSave.length}`);
 
       if (options.cron) {
         console.log(`  Schedule: ${options.cron}`);
@@ -185,19 +187,23 @@ program
         const newItems = dedup.filterNew(normalized, feed.id);
         let added = 0;
 
-        for (const item of newItems) {
+        const itemsToSave = newItems.map(item => {
           const hash = dedup.computeHash(item);
           const guid = item.link || item.title;
-          await db.saveItem({
+          dedup.markAsSeen(item);
+          added++;
+          return {
             id: randomUUID(),
             ...item,
             guid,
             hash,
             feedId: feed.id,
             createdAt: new Date().toISOString(),
-          });
-          dedup.markAsSeen(item);
-          added++;
+          };
+        });
+
+        if (itemsToSave.length > 0) {
+          await db.saveItems(itemsToSave);
         }
 
         await db.updateFeedEtag(feed.id, result.etag, result.lastModified);

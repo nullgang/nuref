@@ -16,6 +16,10 @@ export class SqliteDatabase extends BaseDatabase {
     this.db = new Database(this.dbPath);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
+    this.db.pragma('synchronous = NORMAL');
+    this.db.pragma('cache_size = -64000');
+    this.db.pragma('mmap_size = 268435456');
+    this.db.pragma('temp_store = MEMORY');
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS feeds (
@@ -55,6 +59,7 @@ export class SqliteDatabase extends BaseDatabase {
       CREATE INDEX IF NOT EXISTS items_hash ON items(hash);
       CREATE INDEX IF NOT EXISTS items_published ON items(published);
       CREATE INDEX IF NOT EXISTS items_guid ON items(guid);
+      CREATE INDEX IF NOT EXISTS items_feed_published ON items(feed_id, published);
 
       CREATE VIRTUAL TABLE IF NOT EXISTS items_fts USING fts5(
         title, description, content, author, tags,
@@ -79,6 +84,52 @@ export class SqliteDatabase extends BaseDatabase {
         VALUES (new.rowid, new.title, new.description, new.content, new.author, new.tags);
       END;
     `);
+
+    this.prepareStatements();
+  }
+
+  private stmts!: {
+    saveFeed: Database.Statement;
+    getFeed: Database.Statement;
+    getFeedByUrl: Database.Statement;
+    getAllFeeds: Database.Statement;
+    deleteFeed: Database.Statement;
+    updateFeedEtag: Database.Statement;
+    saveItem: Database.Statement;
+    getItem: Database.Statement;
+    getItemByGuid: Database.Statement;
+    getItemsByFeed: Database.Statement;
+    getAllItems: Database.Statement;
+    deleteItem: Database.Statement;
+    getItemCount: Database.Statement;
+    getItemCountByFeed: Database.Statement;
+    getFeedCount: Database.Statement;
+    searchFts: Database.Statement;
+    searchByAuthor: Database.Statement;
+    batchSaveItems: Database.Statement;
+  };
+
+  private prepareStatements(): void {
+    this.stmts = {
+      saveFeed: this.db.prepare(`INSERT OR REPLACE INTO feeds (id, title, description, link, image, language, format, url, etag, last_modified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`),
+      getFeed: this.db.prepare('SELECT * FROM feeds WHERE id = ?'),
+      getFeedByUrl: this.db.prepare('SELECT * FROM feeds WHERE url = ?'),
+      getAllFeeds: this.db.prepare('SELECT * FROM feeds ORDER BY updated_at DESC'),
+      deleteFeed: this.db.prepare('DELETE FROM feeds WHERE id = ?'),
+      updateFeedEtag: this.db.prepare(`UPDATE feeds SET etag = ?, last_modified = ?, updated_at = datetime('now') WHERE id = ?`),
+      saveItem: this.db.prepare(`INSERT OR REPLACE INTO items (id, title, description, content, author, published, updated, link, image, tags, guid, hash, feed_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+      getItem: this.db.prepare('SELECT * FROM items WHERE id = ?'),
+      getItemByGuid: this.db.prepare('SELECT * FROM items WHERE feed_id = ? AND guid = ?'),
+      getItemsByFeed: this.db.prepare('SELECT * FROM items WHERE feed_id = ? ORDER BY published DESC LIMIT ? OFFSET ?'),
+      getAllItems: this.db.prepare('SELECT * FROM items ORDER BY published DESC LIMIT ? OFFSET ?'),
+      deleteItem: this.db.prepare('DELETE FROM items WHERE id = ?'),
+      getItemCount: this.db.prepare('SELECT COUNT(*) as count FROM items'),
+      getItemCountByFeed: this.db.prepare('SELECT COUNT(*) as count FROM items WHERE feed_id = ?'),
+      getFeedCount: this.db.prepare('SELECT COUNT(*) as count FROM feeds'),
+      searchFts: this.db.prepare('SELECT rowid FROM items_fts WHERE items_fts MATCH ?'),
+      searchByAuthor: this.db.prepare('SELECT * FROM items WHERE author LIKE ? ORDER BY published DESC LIMIT ? OFFSET ?'),
+      batchSaveItems: this.db.prepare(`INSERT OR REPLACE INTO items (id, title, description, content, author, published, updated, link, image, tags, guid, hash, feed_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+    };
   }
 
   async close(): Promise<void> {
@@ -86,34 +137,30 @@ export class SqliteDatabase extends BaseDatabase {
   }
 
   async saveFeed(feed: Feed): Promise<void> {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO feeds (id, title, description, link, image, language, format, url, etag, last_modified, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    `);
-    stmt.run(feed.id, feed.title, feed.description, feed.link, feed.image, feed.language, feed.format, feed.url, feed.etag, feed.lastModified, feed.createdAt);
+    this.stmts.saveFeed.run(feed.id, feed.title, feed.description, feed.link, feed.image, feed.language, feed.format, feed.url, feed.etag, feed.lastModified, feed.createdAt);
   }
 
   async getFeed(id: string): Promise<Feed | null> {
-    const row = this.db.prepare('SELECT * FROM feeds WHERE id = ?').get(id) as any;
+    const row = this.stmts.getFeed.get(id) as any;
     return row ? this.rowToFeed(row) : null;
   }
 
   async getFeedByUrl(url: string): Promise<Feed | null> {
-    const row = this.db.prepare('SELECT * FROM feeds WHERE url = ?').get(url) as any;
+    const row = this.stmts.getFeedByUrl.get(url) as any;
     return row ? this.rowToFeed(row) : null;
   }
 
   async getAllFeeds(): Promise<Feed[]> {
-    const rows = this.db.prepare('SELECT * FROM feeds ORDER BY updated_at DESC').all() as any[];
+    const rows = this.stmts.getAllFeeds.all() as any[];
     return rows.map(row => this.rowToFeed(row));
   }
 
   async deleteFeed(id: string): Promise<void> {
-    this.db.prepare('DELETE FROM feeds WHERE id = ?').run(id);
+    this.stmts.deleteFeed.run(id);
   }
 
   async updateFeedEtag(id: string, etag: string, lastModified: string): Promise<void> {
-    this.db.prepare('UPDATE feeds SET etag = ?, last_modified = ?, updated_at = datetime(\'now\') WHERE id = ?').run(etag, lastModified, id);
+    this.stmts.updateFeedEtag.run(etag, lastModified, id);
   }
 
   async updateFeedMeta(id: string, meta: { title?: string; description?: string; link?: string; image?: string; language?: string }): Promise<void> {
@@ -135,35 +182,40 @@ export class SqliteDatabase extends BaseDatabase {
   }
 
   async saveItem(item: FeedItem): Promise<void> {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO items (id, title, description, content, author, published, updated, link, image, tags, guid, hash, feed_id, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(item.id, item.title, item.description, item.content, item.author, item.published, item.updated, item.link, item.image, JSON.stringify(item.tags), item.guid, item.hash, item.feedId, item.createdAt);
+    this.stmts.saveItem.run(item.id, item.title, item.description, item.content, item.author, item.published, item.updated, item.link, item.image, JSON.stringify(item.tags), item.guid, item.hash, item.feedId, item.createdAt);
+  }
+
+  async saveItems(items: FeedItem[]): Promise<void> {
+    const insert = this.db.transaction((items: FeedItem[]) => {
+      for (const item of items) {
+        this.stmts.batchSaveItems.run(item.id, item.title, item.description, item.content, item.author, item.published, item.updated, item.link, item.image, JSON.stringify(item.tags), item.guid, item.hash, item.feedId, item.createdAt);
+      }
+    });
+    insert(items);
   }
 
   async getItem(id: string): Promise<FeedItem | null> {
-    const row = this.db.prepare('SELECT * FROM items WHERE id = ?').get(id) as any;
+    const row = this.stmts.getItem.get(id) as any;
     return row ? this.rowToItem(row) : null;
   }
 
   async getItemByGuid(feedId: string, guid: string): Promise<FeedItem | null> {
-    const row = this.db.prepare('SELECT * FROM items WHERE feed_id = ? AND guid = ?').get(feedId, guid) as any;
+    const row = this.stmts.getItemByGuid.get(feedId, guid) as any;
     return row ? this.rowToItem(row) : null;
   }
 
   async getItemsByFeed(feedId: string, limit = 50, offset = 0): Promise<FeedItem[]> {
-    const rows = this.db.prepare('SELECT * FROM items WHERE feed_id = ? ORDER BY published DESC LIMIT ? OFFSET ?').all(feedId, limit, offset) as any[];
+    const rows = this.stmts.getItemsByFeed.all(feedId, limit, offset) as any[];
     return rows.map(row => this.rowToItem(row));
   }
 
   async getAllItems(limit = 50, offset = 0): Promise<FeedItem[]> {
-    const rows = this.db.prepare('SELECT * FROM items ORDER BY published DESC LIMIT ? OFFSET ?').all(limit, offset) as any[];
+    const rows = this.stmts.getAllItems.all(limit, offset) as any[];
     return rows.map(row => this.rowToItem(row));
   }
 
   async deleteItem(id: string): Promise<void> {
-    this.db.prepare('DELETE FROM items WHERE id = ?').run(id);
+    this.stmts.deleteItem.run(id);
   }
 
   async search(filters: SearchFilters): Promise<SearchResult> {
@@ -173,9 +225,7 @@ export class SqliteDatabase extends BaseDatabase {
     let params: any[] = [];
 
     if (filters.query) {
-      const ftsResult = this.db.prepare(`
-        SELECT rowid FROM items_fts WHERE items_fts MATCH ?
-      `).all(filters.query) as any[];
+      const ftsResult = this.stmts.searchFts.all(filters.query) as any[];
       const rowIds = ftsResult.map((r: any) => r.rowid);
       if (rowIds.length === 0) {
         return { items: [], total: 0, limit, offset };
@@ -226,15 +276,15 @@ export class SqliteDatabase extends BaseDatabase {
 
   async getItemCount(feedId?: string): Promise<number> {
     if (feedId) {
-      const row = this.db.prepare('SELECT COUNT(*) as count FROM items WHERE feed_id = ?').get(feedId) as any;
+      const row = this.stmts.getItemCountByFeed.get(feedId) as any;
       return row.count;
     }
-    const row = this.db.prepare('SELECT COUNT(*) as count FROM items').get() as any;
+    const row = this.stmts.getItemCount.get() as any;
     return row.count;
   }
 
   async getFeedCount(): Promise<number> {
-    const row = this.db.prepare('SELECT COUNT(*) as count FROM feeds').get() as any;
+    const row = this.stmts.getFeedCount.get() as any;
     return row.count;
   }
 

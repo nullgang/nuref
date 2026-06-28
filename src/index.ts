@@ -37,6 +37,7 @@ export { exportOpml, parseOpml } from './core/opml.js';
 export { renderMarkdown, renderItemMarkdown } from './core/markdown.js';
 export { renderHtml, renderItemHtml } from './core/html-generator.js';
 export { getAdapter } from './core/webhook-formats.js';
+export { PerformanceMetrics, metrics, ObjectPool, createItemPool, BatchBuffer, hashFast, dedupArray, chunkArray } from './core/performance.js';
 export type {
   Feed,
   FeedItem,

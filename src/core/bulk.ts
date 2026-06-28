@@ -127,17 +127,21 @@ export class BulkOperations {
       const normalized = this.normalizer.normalizeItems(feedData.items);
       const validated = this.validator.validateItems(normalized);
 
-      for (const item of validated.validItems) {
+      const itemsToSave = validated.validItems.map(item => {
         const hash = this.computeHash(item);
         const guid = item.link || item.title;
-        await this.db.saveItem({
+        return {
           id: randomUUID(),
           ...item,
           guid,
           hash,
           feedId,
           createdAt: now,
-        });
+        };
+      });
+
+      if (itemsToSave.length > 0) {
+        await this.db.saveItems(itemsToSave);
       }
 
       return { url, success: true, feedId, title: feed.title, itemCount: validated.validItems.length };
@@ -165,19 +169,23 @@ export class BulkOperations {
       const newItems = dedup.filterNew(validated.validItems, feed.id);
       let added = 0;
 
-      for (const item of newItems) {
+      const itemsToSave = newItems.map(item => {
         const hash = dedup.computeHash(item);
         const guid = item.link || item.title;
-        await this.db.saveItem({
+        dedup.markAsSeen(item);
+        added++;
+        return {
           id: randomUUID(),
           ...item,
           guid,
           hash,
           feedId: feed.id,
           createdAt: new Date().toISOString(),
-        });
-        dedup.markAsSeen(item);
-        added++;
+        };
+      });
+
+      if (itemsToSave.length > 0) {
+        await this.db.saveItems(itemsToSave);
       }
 
       await this.db.updateFeedEtag(feed.id, result.etag, result.lastModified);
