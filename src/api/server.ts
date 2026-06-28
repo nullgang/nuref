@@ -374,3 +374,25 @@ export class ApiServer {
     return hash.toString(16).padStart(8, '0');
   }
 }
+
+if (process.argv[1] && (process.argv[1].endsWith('server.ts') || process.argv[1].endsWith('server.js'))) {
+  const { SqliteDatabase } = await import('../database/sqlite.js');
+  const { FeedGenerator } = await import('../generator/generator.js');
+  const { Scheduler } = await import('../scheduler/scheduler.js');
+  const { Cache } = await import('../cache/cache.js');
+
+  const db = new SqliteDatabase();
+  await db.init();
+
+  const generator = new FeedGenerator();
+  const scheduler = new Scheduler(async (feedId) => {
+    console.log(`[Scheduler] Syncing feed ${feedId}`);
+  });
+  const cache = new Cache();
+
+  const server = new ApiServer(db, generator, scheduler, cache, {
+    port: parseInt(process.env.PORT || '3000'),
+  });
+
+  server.start();
+}
